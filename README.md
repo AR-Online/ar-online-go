@@ -191,6 +191,7 @@ Eles sobem um `httptest.Server` **de verdade numa porta livre**. Não há dublê
 
 ## 📚 Documentação
 
+- [CHANGELOG](CHANGELOG.md) — o que mudou em cada versão
 - [Documentação da API](https://docs.ar-online.com.br) — o contrato HTTP cru
 - [Referência do pacote](https://pkg.go.dev/github.com/AR-Online/ar-online-go) — godoc
 - `https://v3.ar-online.com.br/docs/openapi.json` — sempre a lista completa do que está no ar
