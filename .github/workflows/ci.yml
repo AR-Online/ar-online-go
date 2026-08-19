@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: ['**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Formato, vet, lint e ortografia
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: true
+
+      - name: gofmt
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "arquivos fora do formato:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - run: go vet ./...
+
+      - uses: golangci/golangci-lint-action@v8
+        with:
+          version: latest
+
+      - name: Ortografia
+        uses: codespell-project/actions-codespell@v2
+
+  test:
+    name: Testes (Go ${{ matrix.go }} · ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # Ver o resultado de todas mesmo quando uma reprova: o servidor de
+      # mentira abre socket, e é aí que sistema operacional difere.
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # A mínima que o go.mod promete, e a atual. Sem a primeira, a promessa
+        # do go.mod é promessa que ninguém confere.
+        go: ['1.23', 'stable']
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ matrix.go }}
+          cache: true
+
+      - run: go build ./...
+
+      # -race exige cgo, e nem todo runner traz compilador C. Onde tem, roda
+      # com detector de corrida; onde não tem, roda sem — melhor que reprovar
+      # por falta de gcc numa suíte que não tem defeito.
+      - name: Testes
+        shell: bash
+        run: |
+          if go env CGO_ENABLED | grep -q 1; then
+            go test ./... -race -coverprofile=coverage.out -covermode=atomic
+          else
+            echo "cgo desabilitado neste runner: sem -race"
+            go test ./... -coverprofile=coverage.out
+          fi
+
+      # O Go não tem corte de cobertura nativo, então o número mora aqui.
+      # `shell: bash` roda igual nos três sistemas (o runner do Windows tem
+      # git-bash), o que evita duplicar o passo em PowerShell.
+      - name: Cobertura mínima de 95%
+        shell: bash
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/^total:/ {print $3}' | tr -d '%')
+          echo "cobertura: ${total}%"
+          awk -v got="$total" 'BEGIN { exit (got + 0 >= 95) ? 0 : 1 }' || {
+            echo "abaixo do mínimo de 95%"
+            exit 1
+          }
+
+  audit:
+    name: Auditoria de dependências
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: true
+
+      # Sem allow_failure: vulnerabilidade conhecida reprova. É a mesma regra
+      # do portão da API — um aviso que não reprova é um aviso que ninguém lê.
+      #
+      # Este módulo não tem dependência nenhuma, então o que o govulncheck
+      # cobra é a biblioteca padrão — que é exatamente onde uma CVE de HTTP ou
+      # de TLS apareceria.
+      - name: govulncheck
+        run: |
+          go install golang.org/x/vuln/cmd/govulncheck@latest
+          govulncheck ./...
