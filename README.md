@@ -11,13 +11,13 @@ Cliente oficial da API do AR Online para Go.
 ## Instalação
 
 ```bash
-go get github.com/Ar-Online/ar-online-go
+go get github.com/AR-Online/ar-online-go
 ```
 
 Go 1.23 ou mais novo.
 
 ```go
-import "github.com/Ar-Online/ar-online-go"
+import "github.com/AR-Online/ar-online-go"
 ```
 
 O caminho do módulo termina em `ar-online-go`, mas o **pacote** se chama
