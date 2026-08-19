@@ -34,7 +34,7 @@ migrar no mesmo dia, não contrato novo, e um cliente tipado que as
 ### Endereço
 
 ```
-https://api.aronline.com.br/v3/<recurso>
+https://v3.ar-online.com.br/v3/<recurso>
 ```
 
 ### Autenticação
@@ -107,7 +107,7 @@ e o primeiro dado que o suporte pede.
 | `GET /v3/version` | — | versão da API, migration mínima e ambiente (rota aberta) |
 
 A superfície está crescendo. O documento OpenAPI em
-`https://api.aronline.com.br/docs/openapi.json` é sempre a lista completa do
+`https://v3.ar-online.com.br/docs/openapi.json` é sempre a lista completa do
 que está no ar.
 
 ## Desenvolvimento

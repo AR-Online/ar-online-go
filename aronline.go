@@ -7,7 +7,7 @@ package aronline
 
 // DefaultBaseURL is where /v3 lives. Override it to point at staging or at a
 // local process.
-const DefaultBaseURL = "https://api.aronline.com.br"
+const DefaultBaseURL = "https://v3.ar-online.com.br"
 
 // Version is this module's version.
 const Version = "0.1.0"
