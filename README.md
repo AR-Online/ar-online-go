@@ -2,11 +2,9 @@
 
 Cliente oficial da API do AR Online para Go.
 
-> **Estado: em construção.** O que está pronto é o repositório — licença,
-> empacotamento e publicação. O cliente HTTP ainda não: hoje o módulo exporta
-> só o endereço padrão e a versão. Enquanto isso, a API responde a qualquer
-> cliente HTTP — o contrato está abaixo e em
-> [docs.ar-online.com.br](https://docs.ar-online.com.br).
+Você não monta URL, não escreve cabeçalho, não desembrulha envelope e não lê
+status para saber se deu certo. Chama método, recebe struct tipada, e a falha
+chega como `*aronline.APIError`.
 
 ## Instalação
 
@@ -14,109 +12,188 @@ Cliente oficial da API do AR Online para Go.
 go get github.com/AR-Online/ar-online-go
 ```
 
-Go 1.23 ou mais novo.
-
-```go
-import "github.com/AR-Online/ar-online-go"
-```
+Go 1.23 ou mais novo. **Zero dependência** — só a biblioteca padrão.
 
 O caminho do módulo termina em `ar-online-go`, mas o **pacote** se chama
-`aronline` — é assim que ele entra no seu código.
+`aronline`:
 
-## A API que este SDK fala
-
-Só a **`/v3`**. As rotas `/v1` e `/v2` existem e continuam de pé, mas elas
-respondem **byte a byte** o que as APIs antigas respondiam, idiossincrasias
-incluídas — inclusive erro com status `200`. São espelhos para ninguém precisar
-migrar no mesmo dia, não contrato novo, e um cliente tipado que as
-"melhorasse" quebraria exatamente quem elas existem para não quebrar.
-
-### Endereço
-
-```
-https://v3.ar-online.com.br/v3/<recurso>
+```go
+import aronline "github.com/AR-Online/ar-online-go"
 ```
 
-### Autenticação
+## Começando
 
-Token **JWT RS256** no cabeçalho:
+```go
+package main
 
-```
-Authorization: Bearer <token>
-```
+import (
+	"context"
+	"fmt"
+	"os"
 
-O token é emitido pelo emissor do AR Online — **a API não emite token**, ela
-só tem a chave pública e verifica. Dois tipos de identidade circulam:
+	aronline "github.com/AR-Online/ar-online-go"
+)
 
-- **pessoa** — o token traz `sub`. Rotas pessoais (etiquetas, lista de
-  permitidos) respondem a este;
-- **integração** — sem `sub`, ligado à entidade. Serve para servidor a
-  servidor; nas rotas pessoais recebe `403` dizendo isso, e não uma lista
-  vazia (que leria como "você não tem nada").
+func main() {
+	client := aronline.New(aronline.Options{Token: os.Getenv("AR_TOKEN")})
 
-Cada rota exige uma permissão nominal, que vem na claim `permissions` do
-token — a tabela abaixo diz qual.
+	templates, err := client.Templates.List(context.Background(), aronline.TemplateFilter{
+		Channel: aronline.ChannelWhatsApp,
+	})
+	if err != nil {
+		panic(err)
+	}
 
-### Formato das respostas
-
-Sucesso vem envelopado em `data`:
-
-```json
-{ "data": [{ "id": "…", "name": "…" }] }
-```
-
-Falha vem envelopada em `error`, com status HTTP de verdade:
-
-```json
-{
-  "error": {
-    "code": "not_found",
-    "message": "Modelo não encontrado.",
-    "request_id": "0f3a…"
-  }
+	for _, template := range templates {
+		fmt.Println(template.Name, len(template.Variables))
+	}
 }
 ```
 
-O catálogo de códigos:
+Todo método recebe `context.Context` — cancelamento e prazo são seus, como no
+resto do seu programa.
 
-| status | `code` | quando |
-|---|---|---|
-| 400 | `invalid_request` | a requisição não pôde ser lida (inclui filtro desconhecido) |
-| 401 | `unauthenticated` | credencial ausente ou inválida |
-| 403 | `forbidden` | autenticado, sem permissão para a ação |
-| 404 | `not_found` | não existe — **ou** não é seu (responder 403 contaria que existe) |
-| 409 | `conflict` | conflito com o estado atual |
-| 422 | `business_rule` | recusado pela regra de negócio |
-| 429 | `rate_limited` | limite excedido — veja o cabeçalho `Retry-After` |
-| 503 | `unavailable` | indisponível no momento — veja `Retry-After` |
-| 500 | `internal_error` | falha nossa |
+O token é emitido pelo AR Online. Se você ainda não tem o seu, fale com o
+suporte — a API só verifica token, ela não emite.
 
-Toda resposta, com erro ou sem, traz `X-Request-Id`. É o `request_id` do corpo
-e o primeiro dado que o suporte pede.
+## O que dá para fazer
 
-### O que a /v3 responde hoje
+### Modelos
 
-| rota | permissão | responde |
-|---|---|---|
-| `GET /v3/templates` | `templates:read` | os modelos que a sua identidade alcança |
-| `GET /v3/templates/{id}` | `templates:read` | um modelo pelo uuid público |
-| `GET /v3/tags` | `tags:read` | as suas etiquetas (token de pessoa) |
-| `GET /v3/tags/{id}` | `tags:read` | uma etiqueta sua |
-| `GET /v3/allowlist` | `allowlist:read` | os destinatários permitidos (token de pessoa) |
-| `GET /v3/freshness` | `freshness:read` | há quanto tempo a cópia dos dados foi atualizada |
-| `GET /v3/version` | — | versão da API, migration mínima e ambiente (rota aberta) |
+```go
+todos, err := client.Templates.List(ctx, aronline.TemplateFilter{})
+doWhatsApp, err := client.Templates.List(ctx, aronline.TemplateFilter{
+	Channel: aronline.ChannelWhatsApp,
+})
+um, err := client.Templates.Get(ctx, "9b2f-uuid")
+```
 
-A superfície está crescendo. O documento OpenAPI em
-`https://v3.ar-online.com.br/docs/openapi.json` é sempre a lista completa do
-que está no ar.
+Os canais são constantes: `ChannelEmail`, `ChannelSMS`, `ChannelWhatsApp`,
+`ChannelVoice` e `ChannelLetter`. `aronline.Channels` tem a lista inteira.
+
+### Etiquetas
+
+```go
+etiquetas, err := client.Tags.List(ctx)
+uma, err := client.Tags.Get(ctx, "12")
+```
+
+Etiqueta é **pessoal**: esses métodos respondem às etiquetas de quem está no
+token. Token de integração recebe `403` dizendo isso, em vez de uma lista
+vazia — que leria como "você não tem nenhuma".
+
+### Lista de permitidos
+
+```go
+permitidos, err := client.Allowlist.List(ctx)
+```
+
+Também pessoal, pelo mesmo motivo.
+
+### Frescor dos dados
+
+```go
+frescor, err := client.Freshness.Get(ctx)
+
+if frescor.WorstLagSeconds != nil && *frescor.WorstLagSeconds > 900 {
+	log.Println("a carga está atrasada", frescor.Behind)
+}
+```
+
+Responde a pergunta prática de quando uma consulta devolve menos do que você
+esperava: o defeito é da API, ou a carga está atrasada? Sem esse número as
+duas hipóteses parecem a mesma coisa.
+
+Campo que a API responde `null` é ponteiro aqui — `*int`, `*string`. É de
+propósito: `nil` e `0` são situações diferentes, e "nenhuma tabela tem marca
+de leitura" não é "está tudo em dia".
+
+### Versão
+
+```go
+info, err := client.Version.Get(ctx)
+fmt.Println(info.Version, info.Environment)
+```
+
+O único método que funciona **sem token** — é rota aberta. É o primeiro dado
+que o suporte pede.
+
+## Quando dá errado
+
+Toda recusa da API vira `*aronline.APIError`, alcançável por `errors.As`:
+
+```go
+_, err := client.Templates.Get(ctx, "nao-existe")
+
+var failure *aronline.APIError
+if errors.As(err, &failure) {
+	fmt.Println(failure.Code)      // "not_found"
+	fmt.Println(failure.Status)    // 404
+	fmt.Println(failure.RequestID) // o número que o suporte pede
+}
+```
+
+O que vem em `APIError`:
+
+| campo | o que é |
+|---|---|
+| `Status` | o status HTTP (`0` quando a API nem foi alcançada) |
+| `Code` | o código do catálogo: `not_found`, `forbidden`, `rate_limited`, … |
+| `Message` | a mensagem da API, em pt-BR |
+| `RequestID` | identifica a chamada nos nossos registros — **sempre informe num chamado** |
+| `Field` | o campo recusado, quando a recusa é sobre um |
+| `Details` | uma entrada por campo, em erro de validação |
+| `RetryAfter` | quantos segundos esperar, em `429` e `503`; `0` quando o cabeçalho não veio |
+| `Retryable()` | `true` em `429` e `503` |
+
+Repetir a chamada é decisão sua — o SDK não repete sozinho.
+
+Rede fora do ar e resposta que não é JSON (um proxy respondendo no lugar da
+API) também chegam como `*APIError`, com `Code` `unreachable` e
+`invalid_response`. E a causa continua embaixo: `errors.Is(err,
+context.DeadlineExceeded)` funciona como funcionaria sem o SDK.
+
+## Configuração
+
+```go
+aronline.New(aronline.Options{
+	Token:      "…",                          // opcional: sem ele, só Version funciona
+	BaseURL:    "https://v3.ar-online.com.br", // padrão; troque para homologação
+	Timeout:    30 * time.Second,             // padrão
+	HTTPClient: meuClient,                    // opcional: seu pool, seu proxy
+})
+```
+
+`Options{}` zerado já é utilizável: aponta para produção sem credencial, que é
+o suficiente para `Version.Get`.
+
+## Escopo
+
+Este SDK fala **só a `/v3`**. As rotas `/v1` e `/v2` continuam de pé, mas elas
+respondem byte a byte o que as APIs antigas respondiam, idiossincrasias
+incluídas — inclusive erro com status `200`. São espelhos para ninguém
+precisar migrar no mesmo dia, e um cliente tipado que as "melhorasse"
+quebraria exatamente quem elas protegem.
+
+A superfície `/v3` é só de leitura hoje. Escrita entra nos cinco SDKs na mesma
+leva em que entrar na API.
+
+Quem precisa do contrato HTTP cru — porque está escrevendo um cliente em outra
+linguagem, ou depurando o que passou no fio — encontra em
+[docs.ar-online.com.br](https://docs.ar-online.com.br).
 
 ## Desenvolvimento
 
 ```bash
-go build ./...
+gofmt -l .
 go vet ./...
-go test ./...
+go test ./... -cover
 ```
+
+Os testes ficam ao lado do código, em `package aronline_test` — é a separação
+caixa-preta que a linguagem oferece: eles enxergam só a API pública, como
+qualquer pessoa que instala o módulo. Um diretório `test/` à parte seria outro
+pacote, e `go test ./...` deixaria de medir cobertura deste aqui.
 
 ## Licença
 
