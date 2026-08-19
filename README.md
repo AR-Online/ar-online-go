@@ -1,36 +1,76 @@
-# AR Online — SDK Go
+# AR Online SDK para Go
 
 [![CI](https://github.com/AR-Online/ar-online-go/actions/workflows/ci.yml/badge.svg)](https://github.com/AR-Online/ar-online-go/actions/workflows/ci.yml)
-[![Go](https://img.shields.io/badge/go-1.23%2B-00add8.svg)](https://go.dev/)
 [![Go Reference](https://pkg.go.dev/badge/github.com/AR-Online/ar-online-go.svg)](https://pkg.go.dev/github.com/AR-Online/ar-online-go)
-[![Cobertura](https://img.shields.io/badge/cobertura-97.9%25-success.svg)](#-desenvolvimento)
-[![Dependências](https://img.shields.io/badge/depend%C3%AAncias-0-success.svg)](#-o-que-ele-resolve)
+[![Go](https://img.shields.io/badge/go-1.23%2B-00add8.svg)](https://go.dev/)
 [![Licença](https://img.shields.io/badge/licen%C3%A7a-Apache--2.0-green.svg)](LICENSE)
-[![Status](https://img.shields.io/badge/status-n%C3%A3o%20publicado-orange.svg)](#-escopo)
 
-Cliente oficial da API do AR Online para Go. Você não monta URL, não escreve cabeçalho, não desembrulha envelope e não lê status para saber se deu certo: chama método, recebe struct tipada, e a falha chega como `*APIError`.
+Cliente oficial da API da AR Online para Go.
 
-## ✨ O que ele resolve
+> **Status:** este SDK cobre as consultas da API /v3, que ainda não está
+> publicada — o endereço `v3.ar-online.com.br` entra no ar junto com ela. O
+> envio de notificações em produção é feito hoje pela API legada, que ainda não
+> está neste SDK. Fale com o suporte antes de planejar uma integração em cima
+> dele.
 
-- **O envelope não é uniforme** — `templates`, `tags` e `allowlist` respondem `{"data": …}`; `freshness` e `version` respondem o objeto direto. Desembrulhar tudo, ou nada, quebra metade das chamadas. O SDK sabe por rota.
-- **Um erro só, e `errors.Is` continua funcionando** — recusa do catálogo, proxy respondendo HTML e rede fora do ar chegam todos como `*APIError`, com a causa original ainda alcançável por `errors.Is(err, context.DeadlineExceeded)`.
-- **`RequestID` de primeira classe** — é o primeiro dado que o suporte pede. Um SDK que o engolisse obrigaria você a reproduzir a falha no `curl` para achar o número.
-- **Rota aberta funciona sem token** — `Version` é pública. Cliente construído sem credencial chama ela, o que serve para conferir a instalação antes de ter token.
-- **`context.Context` em todo método** — cancelamento e prazo são seus, como no resto do seu programa.
-- **Zero dependência** — só a biblioteca padrão. Nada entra no `go.sum` da sua aplicação por causa deste SDK.
-- **`nil` e `0` não se confundem** — campo que a API responde `null` é ponteiro aqui. "Nenhuma fonte tem marca de leitura" não é "está tudo em dia".
+## Sobre a AR Online
 
-## 🚀 Começando
+A AR Online é uma plataforma brasileira de notificação eletrônica com validade
+jurídica. Uma única requisição dispara a notificação em até cinco canais, e cada
+etapa do percurso — envio, entrega e leitura — é registrada com carimbo do tempo
+emitido por uma Autoridade de Carimbo do Tempo da ICP-Brasil. Esse registro é o
+que dá à comunicação o valor de prova documental previsto na MP 2.200-2/2001, e
+é o que diferencia a plataforma de um serviço comum de disparo de mensagens.
 
-### Instalação
+Os canais disponíveis são:
+
+| canal | o que é |
+|---|---|
+| AR-Email | e-mail com comprovação de entrega e de leitura |
+| AR-SMS | mensagem de texto para o celular do destinatário |
+| AR-WhatsApp | notificação por WhatsApp |
+| AR-Voz | chamada telefônica automatizada |
+| AR-Cartas | carta física registrada, enviada pelos Correios |
+
+Você escolhe quais canais usar em cada envio. O processamento é assíncrono: a
+API confirma o recebimento na hora e devolve um identificador, que você usa
+depois para consultar o status de cada canal e baixar os comprovantes.
+
+| | |
+|---|---|
+| Site | <https://www.ar-online.com.br> |
+| Documentação da API | <https://docs.ar-online.com.br> |
+| Suporte | <suporte@ar-online.com.br> · +55 (11) 4200-7766 |
+
+## Requisitos
+
+- Go 1.23 ou mais novo
+- Nenhuma dependência: o SDK usa apenas a biblioteca padrão
+
+## Instalação
 
 ```bash
 go get github.com/AR-Online/ar-online-go
 ```
 
-Go 1.23 ou mais novo. O caminho do módulo termina em `ar-online-go`, mas o **pacote** se chama `aronline`.
+O caminho do módulo termina em `ar-online-go`, mas o pacote se chama `aronline`.
 
-### Primeira chamada
+## Autenticação
+
+### Token da API /v3
+
+Solicite em <suporte@ar-online.com.br>. O token fica preso a uma entidade da sua
+conta, e é ela que define quais dados ele enxerga — se você precisa consultar
+mais de uma, peça um token para cada. O padrão é somente leitura.
+
+O token tem prazo de validade. Token ausente, expirado ou revogado responde
+`401`; se um token vazar, peça a revogação e ele deixa de ser aceito na chamada
+seguinte.
+
+Quando a /v3 for publicada, a emissão passa a ser por conta própria, na tela
+*Gerar Token* da documentação, com o mesmo usuário e senha do portal.
+
+## Primeiros passos
 
 ```go
 package main
@@ -59,17 +99,19 @@ func main() {
 }
 ```
 
-O token é emitido pelo AR Online — a API só verifica, ela não emite. Se você ainda não tem o seu, fale com o suporte.
+## Referência
 
-## 🧰 O que dá para fazer
+Este SDK cobre hoje as consultas da API /v3. Todo método recebe um
+`context.Context`, então cancelamento e prazo continuam sob o seu controle.
 
-| recurso | métodos | precisa de token |
+| método | o que faz | precisa de token |
 |---|---|---|
-| Modelos | `Templates.List(ctx, filtro)` · `Templates.Get(ctx, id)` | sim |
-| Etiquetas | `Tags.List(ctx)` · `Tags.Get(ctx, id)` | sim |
-| Lista de permitidos | `Allowlist.List(ctx)` | sim |
-| Frescor dos dados | `Freshness.Get(ctx)` | sim |
-| Versão | `Version.Get(ctx)` | **não** |
+| `Templates.List(ctx, filtro)` | lista os modelos, com filtro por canal | sim |
+| `Templates.Get(ctx, id)` | busca um modelo pelo UUID | sim |
+| `Tags.List(ctx)` · `Tags.Get(ctx, id)` | suas etiquetas | sim |
+| `Allowlist.List(ctx)` | seus destinatários permitidos | sim |
+| `Freshness.Get(ctx)` | o atraso da carga de dados | sim |
+| `Version.Get(ctx)` | qual versão da API está no ar | não |
 
 ### Modelos
 
@@ -81,7 +123,8 @@ doWhatsApp, err := client.Templates.List(ctx, aronline.TemplateFilter{
 um, err := client.Templates.Get(ctx, "9b2f-uuid")
 ```
 
-Os canais são constantes: `ChannelEmail`, `ChannelSMS`, `ChannelWhatsApp`, `ChannelVoice` e `ChannelLetter`. `aronline.Channels` traz a lista inteira.
+Os canais são constantes: `ChannelEmail`, `ChannelSMS`, `ChannelWhatsApp`,
+`ChannelVoice` e `ChannelLetter`. `aronline.Channels` traz a lista inteira.
 
 ### Etiquetas e lista de permitidos
 
@@ -91,9 +134,10 @@ uma, err := client.Tags.Get(ctx, "12")
 permitidos, err := client.Allowlist.List(ctx)
 ```
 
-Ambas são **pessoais**: respondem ao que pertence a quem está no token. Token de integração recebe `403` dizendo isso — e não uma lista vazia, que leria como "você não tem nenhuma".
+São recursos **pessoais**: respondem o que pertence a quem está no token. Um
+token de integração, que não representa uma pessoa, recebe `403` nessas rotas.
 
-### Frescor dos dados
+### Atraso da carga
 
 ```go
 frescor, err := client.Freshness.Get(ctx)
@@ -103,9 +147,8 @@ if frescor.SourcesBehind > 0 {
 }
 ```
 
-Responde a pergunta prática de quando uma consulta devolve menos do que você esperava: o defeito é da API, ou a carga está atrasada? Sem esse número as duas hipóteses parecem a mesma coisa.
-
-Ela responde em **contagens**, não em lista de tabelas: "46 acompanhadas, 3 atrasadas" responde "está fresco?"; quarenta e seis nomes de tabela é relatório que ninguém lê na hora.
+Serve para responder uma pergunta prática: quando uma consulta devolve menos do
+que você esperava, o problema é a API ou a carga de dados está atrasada?
 
 ### Versão
 
@@ -114,9 +157,21 @@ info, err := client.Version.Get(ctx)
 fmt.Println(info.Version, info.Environment)
 ```
 
-O único método que funciona **sem token**. É o primeiro dado que o suporte pede.
+É a única chamada que funciona sem token, útil para conferir a instalação antes
+de ter uma credencial.
 
-## ⚠️ Quando dá errado
+## Envio de notificações
+
+O envio, a consulta de status por canal e os comprovantes estão na API legada do
+gateway, que **ainda não está neste SDK** — hoje ela está disponível no
+[SDK TypeScript](https://github.com/AR-Online/ar-online-typescript) e chega aqui
+nas próximas versões.
+
+Enquanto isso, o contrato HTTP está documentado em
+<https://docs.ar-online.com.br>, e a credencial do gateway é emitida pelo
+suporte.
+
+## Tratamento de erros
 
 Toda recusa vira `*aronline.APIError`, alcançável por `errors.As`:
 
@@ -127,45 +182,46 @@ var failure *aronline.APIError
 if errors.As(err, &failure) {
 	fmt.Println(failure.Code)      // "not_found"
 	fmt.Println(failure.Status)    // 404
-	fmt.Println(failure.RequestID) // o número que o suporte pede
+	fmt.Println(failure.RequestID) // informe este número ao abrir um chamado
 }
 ```
 
-| campo | o que é |
+| campo | conteúdo |
 |---|---|
-| `Status` | o status HTTP (`0` quando a API nem foi alcançada) |
+| `Status` | o status HTTP (`0` quando a API não foi alcançada) |
 | `Code` | o código do catálogo: `not_found`, `forbidden`, `rate_limited`, … |
-| `Message` | a mensagem da API, em pt-BR |
-| `RequestID` | identifica a chamada nos nossos registros — **sempre informe num chamado** |
-| `Field` | o campo recusado, quando a recusa é sobre um |
+| `Message` | a mensagem da API, em português |
+| `RequestID` | identifica a chamada nos nossos registros |
+| `Field` | o campo recusado, quando a recusa é sobre um campo |
 | `Details` | uma entrada por campo, em erro de validação |
-| `RetryAfter` | quantos segundos esperar, em `429` e `503`; `0` quando o cabeçalho não veio |
+| `RetryAfter` | quantos segundos esperar, em `429` e `503` |
 | `Retryable()` | `true` em `429` e `503` |
 
-Repetir é decisão sua — o SDK não repete sozinho, porque só quem chamou sabe se a operação pode acontecer duas vezes.
+Erro de rede e resposta que não é JSON também chegam como `*APIError`, e a causa
+original continua embaixo: `errors.Is(err, context.DeadlineExceeded)` funciona
+como funcionaria sem o SDK.
 
-A causa continua embaixo: `errors.Is(err, context.DeadlineExceeded)` funciona como funcionaria sem o SDK.
+O SDK não repete chamadas automaticamente, porque só quem chamou sabe se a
+operação pode acontecer duas vezes.
 
-## ⚙️ Configuração
+## Configuração do cliente
 
 ```go
 aronline.New(aronline.Options{
-	Token:      "…",                          // opcional: sem ele, só Version funciona
-	BaseURL:    "https://v3.ar-online.com.br", // padrão; troque para homologação
-	Timeout:    30 * time.Second,             // padrão
-	HTTPClient: meuClient,                    // opcional: seu pool, seu proxy
+	Token:      "…",                           // opcional: sem ele, só Version funciona
+	BaseURL:    "https://v3.ar-online.com.br", // padrão
+	Timeout:    30 * time.Second,              // padrão
+	HTTPClient: meuClient,                     // opcional: seu pool, seu proxy
 })
 ```
 
-`Options{}` zerado já é utilizável: aponta para produção sem credencial, que é o suficiente para `Version.Get`.
+`Options{}` zerado já é utilizável: aponta para produção sem credencial, o
+suficiente para `Version.Get`.
 
-## 🎯 Escopo
+Campo que a API responde `null` é ponteiro nas structs, para que ausência e zero
+não se confundam: "nenhuma fonte tem marca de leitura" não é "está tudo em dia".
 
-Este SDK fala **só a `/v3`**. As rotas `/v1` e `/v2` continuam de pé, mas respondem byte a byte o que as APIs antigas respondiam, idiossincrasias incluídas — inclusive erro com status `200`. São espelhos para ninguém precisar migrar no mesmo dia, e um cliente tipado que as "melhorasse" quebraria exatamente quem elas protegem.
-
-A superfície `/v3` é **só de leitura** hoje. Escrita entra nos cinco SDKs na mesma leva em que entrar na API.
-
-## 🧪 Desenvolvimento
+## Desenvolvimento
 
 | comando | o que cobra |
 |---|---|
@@ -174,28 +230,37 @@ A superfície `/v3` é **só de leitura** hoje. Escrita entra nos cinco SDKs na 
 | `golangci-lint run` | `bodyclose`, `errorlint`, `gosec`, `noctx`, `revive` |
 | `codespell` | ortografia |
 | `go test ./... -race -coverprofile=coverage.out` | testes, com detector de corrida |
-| `go tool cover -func=coverage.out` | cobertura — o mínimo é **95%** |
+| `go tool cover -func=coverage.out` | cobertura, com mínimo de 95% |
 | `govulncheck ./...` | vulnerabilidade conhecida |
 
 | métrica | valor |
 |---|---|
-| Testes | 37 (subtestes incluídos) |
+| Testes | 37, subtestes incluídos |
 | Cobertura | 97,9% |
 | Dependências | 0 |
 
-⚠️ Este módulo **não tem dependência nenhuma**, então o que o `govulncheck` cobra é a **biblioteca padrão** — que é exatamente onde uma CVE de HTTP ou de TLS apareceria. Por isso ele reprova quando a sua toolchain está atrás: não é o SDK, é o Go da sua máquina. O CI usa `stable`.
+Como o módulo não tem dependência nenhuma, o que o `govulncheck` cobra é a
+biblioteca padrão — que é justamente onde apareceria uma CVE de HTTP ou de TLS.
+Por isso ele reprova quando a sua toolchain está atrasada: o aviso é sobre o Go
+da sua máquina, não sobre o SDK. O CI usa `stable`.
 
-Os testes ficam ao lado do código, em `package aronline_test` — a separação caixa-preta que a linguagem oferece: enxergam só a API pública, como qualquer pessoa que instala o módulo. Um diretório `test/` à parte seria outro pacote, e `go test ./...` deixaria de medir cobertura deste aqui.
+Os testes ficam em `package aronline_test`, a separação caixa-preta que a
+linguagem oferece: enxergam apenas a API pública, como qualquer pessoa que
+instala o módulo. Eles sobem um `httptest.Server` real em uma porta livre.
 
-Eles sobem um `httptest.Server` **de verdade numa porta livre**. Não há dublê: o que este SDK precisa acertar é justamente o fio.
+Para publicar uma versão, veja [PUBLICANDO.md](PUBLICANDO.md).
 
-## 📚 Documentação
+## Suporte
 
-- [CHANGELOG](CHANGELOG.md) — o que mudou em cada versão
-- [Documentação da API](https://docs.ar-online.com.br) — o contrato HTTP cru
-- [Referência do pacote](https://pkg.go.dev/github.com/AR-Online/ar-online-go) — godoc
-- `https://v3.ar-online.com.br/docs/openapi.json` — sempre a lista completa do que está no ar
+- Dúvidas de integração e emissão de credenciais: <suporte@ar-online.com.br>
+- Telefone: +55 (11) 4200-7766
+- Defeitos neste SDK: [issues do repositório](https://github.com/AR-Online/ar-online-go/issues)
 
-## 📄 Licença
+Ao abrir um chamado sobre uma chamada que falhou, informe o `RequestID` do erro:
+é com ele que localizamos a requisição nos nossos registros.
 
-Apache License 2.0 — veja [LICENSE](LICENSE). © 2026 AR ONLINE TECNOLOGIA LTDA.
+## Licença
+
+Apache License 2.0 — veja [LICENSE](LICENSE).
+
+© 2026 AR ONLINE TECNOLOGIA LTDA.
