@@ -1,5 +1,8 @@
 # AR Online — SDK Go
 
+[![CI](https://github.com/AR-Online/ar-online-go/actions/workflows/ci.yml/badge.svg)](https://github.com/AR-Online/ar-online-go/actions/workflows/ci.yml)
+[![Licença: Apache 2.0](https://img.shields.io/badge/licen%C3%A7a-Apache%202.0-blue.svg)](LICENSE)
+
 Cliente oficial da API do AR Online para Go.
 
 Você não monta URL, não escreve cabeçalho, não desembrulha envelope e não lê
@@ -197,6 +200,9 @@ linguagem, ou depurando o que passou no fio — encontra em
 | `go test ./... -race -coverprofile=coverage.out` | testes, com detector de corrida |
 | `go tool cover -func=coverage.out` | cobertura — o mínimo é **95%** |
 | `govulncheck ./...` | vulnerabilidade conhecida |
+
+Hoje: **37 testes** contando os subtestes — uma tabela cobre os sete métodos
+contra a mesma recusa —, com 97,9% de cobertura.
 
 Este módulo não tem dependência nenhuma, então o que o `govulncheck` cobra é
 a **biblioteca padrão** — que é exatamente onde uma CVE de HTTP ou de TLS
