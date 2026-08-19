@@ -1,5 +1,8 @@
 version: "2"
 
+# `misspell` fica de fora: ele so conhece ingles, e a prosa daqui e em
+# portugues — ele acusou "Eles" como erro de "Eels". Ortografia ja e coberta
+# pelo codespell, que carrega a lista de excecoes pt-BR.
 linters:
   default: standard
   enable:
@@ -9,7 +12,6 @@ linters:
     - gocritic
     - godot
     - gosec
-    - misspell
     - nilerr
     - noctx # requisição sem context é requisição que não dá para cancelar
     - revive
@@ -21,7 +23,13 @@ linters:
   settings:
     errcheck:
       check-type-assertions: true
-      check-blank: true
+      # `check-blank` fica DESLIGADO de proposito. `_ = x()` e o jeito que a
+      # linguagem oferece para dizer "estou ignorando este erro, e sei disso":
+      # ligar a checagem e depois escrever `_ =` em todo lugar seria brigar
+      # com o proprio idioma. O que nao pode passar e o erro ignorado em
+      # SILENCIO — e disso o check-type-assertions e o resto do conjunto dao
+      # conta.
+      check-blank: false
     gocritic:
       enabled-tags: [diagnostic, performance, style]
     revive:

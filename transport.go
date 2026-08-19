@@ -83,7 +83,7 @@ func (t *transport) do(
 		}
 	}
 
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, t.url(path, query), nil)
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, t.url(path, query), http.NoBody)
 	if err != nil {
 		return &APIError{
 			Status:  0,

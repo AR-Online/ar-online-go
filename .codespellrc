@@ -10,5 +10,5 @@
 # `afterall` é API do vitest, não palavra.
 [codespell]
 skip = *.lock,*.json,*.map,*.phar,*.min.js,.git,node_modules,vendor,dist,target,coverage,build,.venv,venv,__pycache__,.phpunit.cache,.ruff_cache,.mypy_cache,.pytest_cache
-ignore-words-list = afterall,atual,caractere,classe,cliente,comando,comandos,construtor,controle,crate,deser,eles,erro,fale,limite,mede,momento,nomes,oficial,repete,responde,ser,vai
+ignore-words-list = afterall,atual,autorize,caractere,classe,cliente,comando,comandos,construtor,controle,crate,deser,eles,erro,fale,limite,mede,momento,nome,nomes,oficial,repete,responde,ser,vai
 quiet-level = 2
