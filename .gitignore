@@ -1,0 +1,14 @@
+bin/
+vendor/
+*.exe
+*.test
+*.out
+coverage.txt
+
+*.log
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+.env
+.env.local
