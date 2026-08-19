@@ -1,0 +1,46 @@
+name: Publicar
+
+# Dispara na tag. A tag é a decisão de publicar — não o merge, não o horário.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Módulo Go (pela tag, sem registro)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+          cache: true
+
+      # Publicar sem passar pelo portão é publicar no escuro. O CI já roda
+      # isto em push e PR; aqui roda de novo porque a tag pode apontar para um
+      # commit que ninguém abriu em PR.
+      - run: go build ./...
+      - run: go vet ./...
+      - run: go test ./...
+
+      # Go não tem registro nem token: a TAG é a publicação. O proxy
+      # (proxy.golang.org) indexa o módulo na primeira vez que alguém pedir
+      # aquela versão. Não há Trusted Publishing a configurar aqui — não
+      # porque falte, mas porque não existe credencial neste caminho.
+      #
+      # O aquecimento abaixo é o que faz a versão aparecer sem esperar o
+      # primeiro `go get` de alguém.
+      - name: Avisar o proxy do módulo
+        run: |
+          GOPROXY=proxy.golang.org go list -m \
+            "github.com/AR-Online/ar-online-go@${GITHUB_REF_NAME}"
+
+      - name: Release no GitHub
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
