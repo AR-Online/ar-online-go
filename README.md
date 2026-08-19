@@ -1,30 +1,36 @@
 # AR Online — SDK Go
 
 [![CI](https://github.com/AR-Online/ar-online-go/actions/workflows/ci.yml/badge.svg)](https://github.com/AR-Online/ar-online-go/actions/workflows/ci.yml)
-[![Licença: Apache 2.0](https://img.shields.io/badge/licen%C3%A7a-Apache%202.0-blue.svg)](LICENSE)
+[![Go](https://img.shields.io/badge/go-1.23%2B-00add8.svg)](https://go.dev/)
+[![Go Reference](https://pkg.go.dev/badge/github.com/AR-Online/ar-online-go.svg)](https://pkg.go.dev/github.com/AR-Online/ar-online-go)
+[![Cobertura](https://img.shields.io/badge/cobertura-97.9%25-success.svg)](#-desenvolvimento)
+[![Dependências](https://img.shields.io/badge/depend%C3%AAncias-0-success.svg)](#-o-que-ele-resolve)
+[![Licença](https://img.shields.io/badge/licen%C3%A7a-Apache--2.0-green.svg)](LICENSE)
+[![Status](https://img.shields.io/badge/status-n%C3%A3o%20publicado-orange.svg)](#-escopo)
 
-Cliente oficial da API do AR Online para Go.
+Cliente oficial da API do AR Online para Go. Você não monta URL, não escreve cabeçalho, não desembrulha envelope e não lê status para saber se deu certo: chama método, recebe struct tipada, e a falha chega como `*APIError`.
 
-Você não monta URL, não escreve cabeçalho, não desembrulha envelope e não lê
-status para saber se deu certo. Chama método, recebe struct tipada, e a falha
-chega como `*aronline.APIError`.
+## ✨ O que ele resolve
 
-## Instalação
+- **O envelope não é uniforme** — `templates`, `tags` e `allowlist` respondem `{"data": …}`; `freshness` e `version` respondem o objeto direto. Desembrulhar tudo, ou nada, quebra metade das chamadas. O SDK sabe por rota.
+- **Um erro só, e `errors.Is` continua funcionando** — recusa do catálogo, proxy respondendo HTML e rede fora do ar chegam todos como `*APIError`, com a causa original ainda alcançável por `errors.Is(err, context.DeadlineExceeded)`.
+- **`RequestID` de primeira classe** — é o primeiro dado que o suporte pede. Um SDK que o engolisse obrigaria você a reproduzir a falha no `curl` para achar o número.
+- **Rota aberta funciona sem token** — `Version` é pública. Cliente construído sem credencial chama ela, o que serve para conferir a instalação antes de ter token.
+- **`context.Context` em todo método** — cancelamento e prazo são seus, como no resto do seu programa.
+- **Zero dependência** — só a biblioteca padrão. Nada entra no `go.sum` da sua aplicação por causa deste SDK.
+- **`nil` e `0` não se confundem** — campo que a API responde `null` é ponteiro aqui. "Nenhuma fonte tem marca de leitura" não é "está tudo em dia".
+
+## 🚀 Começando
+
+### Instalação
 
 ```bash
 go get github.com/AR-Online/ar-online-go
 ```
 
-Go 1.23 ou mais novo. **Zero dependência** — só a biblioteca padrão.
+Go 1.23 ou mais novo. O caminho do módulo termina em `ar-online-go`, mas o **pacote** se chama `aronline`.
 
-O caminho do módulo termina em `ar-online-go`, mas o **pacote** se chama
-`aronline`:
-
-```go
-import aronline "github.com/AR-Online/ar-online-go"
-```
-
-## Começando
+### Primeira chamada
 
 ```go
 package main
@@ -53,13 +59,17 @@ func main() {
 }
 ```
 
-Todo método recebe `context.Context` — cancelamento e prazo são seus, como no
-resto do seu programa.
+O token é emitido pelo AR Online — a API só verifica, ela não emite. Se você ainda não tem o seu, fale com o suporte.
 
-O token é emitido pelo AR Online. Se você ainda não tem o seu, fale com o
-suporte — a API só verifica token, ela não emite.
+## 🧰 O que dá para fazer
 
-## O que dá para fazer
+| recurso | métodos | precisa de token |
+|---|---|---|
+| Modelos | `Templates.List(ctx, filtro)` · `Templates.Get(ctx, id)` | sim |
+| Etiquetas | `Tags.List(ctx)` · `Tags.Get(ctx, id)` | sim |
+| Lista de permitidos | `Allowlist.List(ctx)` | sim |
+| Frescor dos dados | `Freshness.Get(ctx)` | sim |
+| Versão | `Version.Get(ctx)` | **não** |
 
 ### Modelos
 
@@ -71,27 +81,17 @@ doWhatsApp, err := client.Templates.List(ctx, aronline.TemplateFilter{
 um, err := client.Templates.Get(ctx, "9b2f-uuid")
 ```
 
-Os canais são constantes: `ChannelEmail`, `ChannelSMS`, `ChannelWhatsApp`,
-`ChannelVoice` e `ChannelLetter`. `aronline.Channels` tem a lista inteira.
+Os canais são constantes: `ChannelEmail`, `ChannelSMS`, `ChannelWhatsApp`, `ChannelVoice` e `ChannelLetter`. `aronline.Channels` traz a lista inteira.
 
-### Etiquetas
+### Etiquetas e lista de permitidos
 
 ```go
 etiquetas, err := client.Tags.List(ctx)
 uma, err := client.Tags.Get(ctx, "12")
-```
-
-Etiqueta é **pessoal**: esses métodos respondem às etiquetas de quem está no
-token. Token de integração recebe `403` dizendo isso, em vez de uma lista
-vazia — que leria como "você não tem nenhuma".
-
-### Lista de permitidos
-
-```go
 permitidos, err := client.Allowlist.List(ctx)
 ```
 
-Também pessoal, pelo mesmo motivo.
+Ambas são **pessoais**: respondem ao que pertence a quem está no token. Token de integração recebe `403` dizendo isso — e não uma lista vazia, que leria como "você não tem nenhuma".
 
 ### Frescor dos dados
 
@@ -103,17 +103,9 @@ if frescor.SourcesBehind > 0 {
 }
 ```
 
-Responde a pergunta prática de quando uma consulta devolve menos do que você
-esperava: o defeito é da API, ou a carga está atrasada? Sem esse número as
-duas hipóteses parecem a mesma coisa.
+Responde a pergunta prática de quando uma consulta devolve menos do que você esperava: o defeito é da API, ou a carga está atrasada? Sem esse número as duas hipóteses parecem a mesma coisa.
 
-Ela responde em **contagens**, não numa lista de tabelas: "46 acompanhadas, 3
-atrasadas" responde "está fresco?"; quarenta e seis nomes de tabela é um
-relatório que ninguém lê na hora em que a pergunta é feita.
-
-Campo que a API responde `null` é ponteiro aqui — `*int`, `*string`. É de
-propósito: `nil` e `0` são situações diferentes, e "nenhuma tabela tem marca
-de leitura" não é "está tudo em dia".
+Ela responde em **contagens**, não em lista de tabelas: "46 acompanhadas, 3 atrasadas" responde "está fresco?"; quarenta e seis nomes de tabela é relatório que ninguém lê na hora.
 
 ### Versão
 
@@ -122,12 +114,11 @@ info, err := client.Version.Get(ctx)
 fmt.Println(info.Version, info.Environment)
 ```
 
-O único método que funciona **sem token** — é rota aberta. É o primeiro dado
-que o suporte pede.
+O único método que funciona **sem token**. É o primeiro dado que o suporte pede.
 
-## Quando dá errado
+## ⚠️ Quando dá errado
 
-Toda recusa da API vira `*aronline.APIError`, alcançável por `errors.As`:
+Toda recusa vira `*aronline.APIError`, alcançável por `errors.As`:
 
 ```go
 _, err := client.Templates.Get(ctx, "nao-existe")
@@ -140,8 +131,6 @@ if errors.As(err, &failure) {
 }
 ```
 
-O que vem em `APIError`:
-
 | campo | o que é |
 |---|---|
 | `Status` | o status HTTP (`0` quando a API nem foi alcançada) |
@@ -153,14 +142,11 @@ O que vem em `APIError`:
 | `RetryAfter` | quantos segundos esperar, em `429` e `503`; `0` quando o cabeçalho não veio |
 | `Retryable()` | `true` em `429` e `503` |
 
-Repetir a chamada é decisão sua — o SDK não repete sozinho.
+Repetir é decisão sua — o SDK não repete sozinho, porque só quem chamou sabe se a operação pode acontecer duas vezes.
 
-Rede fora do ar e resposta que não é JSON (um proxy respondendo no lugar da
-API) também chegam como `*APIError`, com `Code` `unreachable` e
-`invalid_response`. E a causa continua embaixo: `errors.Is(err,
-context.DeadlineExceeded)` funciona como funcionaria sem o SDK.
+A causa continua embaixo: `errors.Is(err, context.DeadlineExceeded)` funciona como funcionaria sem o SDK.
 
-## Configuração
+## ⚙️ Configuração
 
 ```go
 aronline.New(aronline.Options{
@@ -171,50 +157,44 @@ aronline.New(aronline.Options{
 })
 ```
 
-`Options{}` zerado já é utilizável: aponta para produção sem credencial, que é
-o suficiente para `Version.Get`.
+`Options{}` zerado já é utilizável: aponta para produção sem credencial, que é o suficiente para `Version.Get`.
 
-## Escopo
+## 🎯 Escopo
 
-Este SDK fala **só a `/v3`**. As rotas `/v1` e `/v2` continuam de pé, mas elas
-respondem byte a byte o que as APIs antigas respondiam, idiossincrasias
-incluídas — inclusive erro com status `200`. São espelhos para ninguém
-precisar migrar no mesmo dia, e um cliente tipado que as "melhorasse"
-quebraria exatamente quem elas protegem.
+Este SDK fala **só a `/v3`**. As rotas `/v1` e `/v2` continuam de pé, mas respondem byte a byte o que as APIs antigas respondiam, idiossincrasias incluídas — inclusive erro com status `200`. São espelhos para ninguém precisar migrar no mesmo dia, e um cliente tipado que as "melhorasse" quebraria exatamente quem elas protegem.
 
-A superfície `/v3` é só de leitura hoje. Escrita entra nos cinco SDKs na mesma
-leva em que entrar na API.
+A superfície `/v3` é **só de leitura** hoje. Escrita entra nos cinco SDKs na mesma leva em que entrar na API.
 
-Quem precisa do contrato HTTP cru — porque está escrevendo um cliente em outra
-linguagem, ou depurando o que passou no fio — encontra em
-[docs.ar-online.com.br](https://docs.ar-online.com.br).
-
-## Desenvolvimento
+## 🧪 Desenvolvimento
 
 | comando | o que cobra |
 |---|---|
 | `gofmt -l .` | formato |
 | `go vet ./...` | o vet da linguagem |
-| `golangci-lint run` | o conjunto do `.golangci.yml` — `bodyclose`, `errorlint`, `gosec`, `noctx`, `revive` |
+| `golangci-lint run` | `bodyclose`, `errorlint`, `gosec`, `noctx`, `revive` |
 | `codespell` | ortografia |
 | `go test ./... -race -coverprofile=coverage.out` | testes, com detector de corrida |
 | `go tool cover -func=coverage.out` | cobertura — o mínimo é **95%** |
 | `govulncheck ./...` | vulnerabilidade conhecida |
 
-Hoje: **37 testes** contando os subtestes — uma tabela cobre os sete métodos
-contra a mesma recusa —, com 97,9% de cobertura.
+| métrica | valor |
+|---|---|
+| Testes | 37 (subtestes incluídos) |
+| Cobertura | 97,9% |
+| Dependências | 0 |
 
-Este módulo não tem dependência nenhuma, então o que o `govulncheck` cobra é
-a **biblioteca padrão** — que é exatamente onde uma CVE de HTTP ou de TLS
-apareceria. Por isso ele reprova quando a sua toolchain está atrás: não é o
-SDK, é o Go da sua máquina. Atualize o Go e roda limpo; o CI usa `stable`
-justamente para nunca ficar para trás.
+⚠️ Este módulo **não tem dependência nenhuma**, então o que o `govulncheck` cobra é a **biblioteca padrão** — que é exatamente onde uma CVE de HTTP ou de TLS apareceria. Por isso ele reprova quando a sua toolchain está atrás: não é o SDK, é o Go da sua máquina. O CI usa `stable`.
 
-Os testes ficam ao lado do código, em `package aronline_test` — é a separação
-caixa-preta que a linguagem oferece: eles enxergam só a API pública, como
-qualquer pessoa que instala o módulo. Um diretório `test/` à parte seria outro
-pacote, e `go test ./...` deixaria de medir cobertura deste aqui.
+Os testes ficam ao lado do código, em `package aronline_test` — a separação caixa-preta que a linguagem oferece: enxergam só a API pública, como qualquer pessoa que instala o módulo. Um diretório `test/` à parte seria outro pacote, e `go test ./...` deixaria de medir cobertura deste aqui.
 
-## Licença
+Eles sobem um `httptest.Server` **de verdade numa porta livre**. Não há dublê: o que este SDK precisa acertar é justamente o fio.
 
-[Apache 2.0](LICENSE) — © 2026 AR ONLINE TECNOLOGIA LTDA.
+## 📚 Documentação
+
+- [Documentação da API](https://docs.ar-online.com.br) — o contrato HTTP cru
+- [Referência do pacote](https://pkg.go.dev/github.com/AR-Online/ar-online-go) — godoc
+- `https://v3.ar-online.com.br/docs/openapi.json` — sempre a lista completa do que está no ar
+
+## 📄 Licença
+
+Apache License 2.0 — veja [LICENSE](LICENSE). © 2026 AR ONLINE TECNOLOGIA LTDA.
