@@ -184,11 +184,21 @@ linguagem, ou depurando o que passou no fio — encontra em
 
 ## Desenvolvimento
 
-```bash
-gofmt -l .
-go vet ./...
-go test ./... -cover
-```
+| comando | o que cobra |
+|---|---|
+| `gofmt -l .` | formato |
+| `go vet ./...` | o vet da linguagem |
+| `golangci-lint run` | o conjunto do `.golangci.yml` — `bodyclose`, `errorlint`, `gosec`, `noctx`, `revive` |
+| `codespell` | ortografia |
+| `go test ./... -race -coverprofile=coverage.out` | testes, com detector de corrida |
+| `go tool cover -func=coverage.out` | cobertura — o mínimo é **95%** |
+| `govulncheck ./...` | vulnerabilidade conhecida |
+
+Este módulo não tem dependência nenhuma, então o que o `govulncheck` cobra é
+a **biblioteca padrão** — que é exatamente onde uma CVE de HTTP ou de TLS
+apareceria. Por isso ele reprova quando a sua toolchain está atrás: não é o
+SDK, é o Go da sua máquina. Atualize o Go e roda limpo; o CI usa `stable`
+justamente para nunca ficar para trás.
 
 Os testes ficam ao lado do código, em `package aronline_test` — é a separação
 caixa-preta que a linguagem oferece: eles enxergam só a API pública, como

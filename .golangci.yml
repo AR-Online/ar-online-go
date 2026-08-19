@@ -1,0 +1,41 @@
+version: "2"
+
+linters:
+  default: standard
+  enable:
+    - bodyclose # resposta HTTP não fechada vaza conexão no processo do parceiro
+    - errcheck
+    - errorlint # `errors.Is/As` no lugar de comparação e type assertion
+    - gocritic
+    - godot
+    - gosec
+    - misspell
+    - nilerr
+    - noctx # requisição sem context é requisição que não dá para cancelar
+    - revive
+    - unconvert
+    - unparam
+    - usestdlibvars
+    - wastedassign
+
+  settings:
+    errcheck:
+      check-type-assertions: true
+      check-blank: true
+    gocritic:
+      enabled-tags: [diagnostic, performance, style]
+    revive:
+      rules:
+        - name: exported
+          # Isto é uma biblioteca pública: identificador exportado sem
+          # comentário é identificador que o parceiro descobre lendo o fonte.
+          arguments: [checkPrivateReceivers, disableStutteringCheck]
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

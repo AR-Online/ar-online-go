@@ -1,0 +1,14 @@
+# Corretor ortográfico.
+#
+# A lista de exceções é quase toda pt-BR, e não é desleixo: o codespell procura
+# erro de INGLÊS, e a documentação daqui é em português. `erro`, `cliente` e
+# `responde` são palavras certas — não `error`, `client` e `respond` escritos
+# errado. É a mesma constatação que o scripts/check-language.mjs do repositório
+# da API registra: rodado contra prosa em português, o corretor reporta o
+# idioma inteiro.
+#
+# `afterall` é API do vitest, não palavra.
+[codespell]
+skip = *.lock,*.json,*.map,*.phar,*.min.js,.git,node_modules,vendor,dist,target,coverage,build,.venv,venv,__pycache__,.phpunit.cache,.ruff_cache,.mypy_cache,.pytest_cache
+ignore-words-list = afterall,atual,caractere,classe,cliente,comando,comandos,construtor,controle,crate,deser,eles,erro,fale,limite,mede,momento,nomes,oficial,repete,responde,ser,vai
+quiet-level = 2
