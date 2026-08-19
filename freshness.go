@@ -2,24 +2,26 @@ package aronline
 
 import "context"
 
-// BehindTable is a table whose copy is past the threshold.
-type BehindTable struct {
-	Legacy     string `json:"legacy"`
-	LagSeconds int    `json:"lag_seconds"`
-}
-
 // Freshness says how fresh the copy of the data is.
+//
+// It answers in COUNTS, not in a list of tables: "46 tracked, 3 behind" is an
+// answer to "is it fresh"; forty-six table names is a report nobody reads at
+// the moment the question is asked.
 type Freshness struct {
+	// RefreshedAt is when the measurement was taken.
 	RefreshedAt *string `json:"refreshed_at"`
-	LastLoadAt  *string `json:"last_load_at"`
-	// WorstLagSeconds is nil when no table carries a read mark yet.
+	// LastLoadAt is the newest read mark across every tracked source.
+	LastLoadAt *string `json:"last_load_at"`
+	// WorstLagSeconds is nil when no source carries a read mark yet -- which
+	// is not zero lag.
 	WorstLagSeconds *int `json:"worst_lag_seconds"`
-	TablesTracked   int  `json:"tables_tracked"`
-	// TablesNeverLoaded is its own count -- it is not lag, and the fix for
-	// "the loader has not started" is not the fix for "it is behind".
-	TablesNeverLoaded int `json:"tables_never_loaded"`
-	// Behind lists the tables past the threshold, worst first.
-	Behind []BehindTable `json:"behind"`
+	// SourcesTracked is how many sources the load watches.
+	SourcesTracked int `json:"sources_tracked"`
+	// SourcesBehind is how many are past the threshold.
+	SourcesBehind int `json:"sources_behind"`
+	// SourcesNotLoaded is its own count -- it is not lag, and the fix for
+	// "the load has not started" is not the fix for "it is behind".
+	SourcesNotLoaded int `json:"sources_not_loaded"`
 }
 
 // FreshnessService reports how far behind the copy of the data is.

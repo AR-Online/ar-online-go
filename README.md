@@ -95,14 +95,18 @@ Também pessoal, pelo mesmo motivo.
 ```go
 frescor, err := client.Freshness.Get(ctx)
 
-if frescor.WorstLagSeconds != nil && *frescor.WorstLagSeconds > 900 {
-	log.Println("a carga está atrasada", frescor.Behind)
+if frescor.SourcesBehind > 0 {
+	log.Printf("%d de %d atrasadas", frescor.SourcesBehind, frescor.SourcesTracked)
 }
 ```
 
 Responde a pergunta prática de quando uma consulta devolve menos do que você
 esperava: o defeito é da API, ou a carga está atrasada? Sem esse número as
 duas hipóteses parecem a mesma coisa.
+
+Ela responde em **contagens**, não numa lista de tabelas: "46 acompanhadas, 3
+atrasadas" responde "está fresco?"; quarenta e seis nomes de tabela é um
+relatório que ninguém lê na hora em que a pergunta é feita.
 
 Campo que a API responde `null` é ponteiro aqui — `*int`, `*string`. É de
 propósito: `nil` e `0` são situações diferentes, e "nenhuma tabela tem marca

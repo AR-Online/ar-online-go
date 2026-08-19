@@ -171,14 +171,12 @@ func TestAllowlistList(t *testing.T) {
 func TestFreshnessVemDiretoSemEnvelope(t *testing.T) {
 	fake := newFakeAPI(t)
 	fake.answers(t, map[string]any{
-		"refreshed_at":        "2026-08-18T11:42:03-03:00",
-		"last_load_at":        "2026-08-18T11:40:00-03:00",
-		"worst_lag_seconds":   34904,
-		"tables_tracked":      46,
-		"tables_never_loaded": 2,
-		"behind": []map[string]any{
-			{"legacy": "geral.ger_voz", "lag_seconds": 34904},
-		},
+		"refreshed_at":       "2026-08-18T11:42:03-03:00",
+		"last_load_at":       "2026-08-18T11:40:00-03:00",
+		"worst_lag_seconds":  34904,
+		"sources_tracked":    46,
+		"sources_behind":     3,
+		"sources_not_loaded": 2,
 	})
 
 	freshness, err := fake.client().Freshness.Get(context.Background())
@@ -186,16 +184,18 @@ func TestFreshnessVemDiretoSemEnvelope(t *testing.T) {
 		t.Fatalf("não esperava erro: %v", err)
 	}
 
-	if freshness.TablesTracked != 46 || freshness.TablesNeverLoaded != 2 {
+	if freshness.SourcesTracked != 46 || freshness.SourcesBehind != 3 {
 		t.Errorf("freshness = %+v", freshness)
+	}
+
+	// Nunca carregada e uma contagem PROPRIA, e nao parte de "atrasada": o
+	// conserto de "a carga nao comecou" nao e o conserto de "esta atrasada".
+	if freshness.SourcesNotLoaded != 2 {
+		t.Errorf("sources_not_loaded = %d, queria 2", freshness.SourcesNotLoaded)
 	}
 
 	if freshness.WorstLagSeconds == nil || *freshness.WorstLagSeconds != 34904 {
 		t.Errorf("worst_lag_seconds = %v", freshness.WorstLagSeconds)
-	}
-
-	if len(freshness.Behind) != 1 || freshness.Behind[0].Legacy != "geral.ger_voz" {
-		t.Errorf("behind = %+v", freshness.Behind)
 	}
 
 	if fake.received.Path != "/v3/freshness" {
@@ -207,7 +207,7 @@ func TestFreshnessSemMarcaDeLeituraVemNulo(t *testing.T) {
 	fake := newFakeAPI(t)
 	fake.answers(t, map[string]any{
 		"refreshed_at": nil, "last_load_at": nil, "worst_lag_seconds": nil,
-		"tables_tracked": 46, "tables_never_loaded": 46, "behind": []any{},
+		"sources_tracked": 46, "sources_behind": 0, "sources_not_loaded": 46,
 	})
 
 	freshness, err := fake.client().Freshness.Get(context.Background())
