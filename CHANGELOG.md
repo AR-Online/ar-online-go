@@ -14,8 +14,17 @@ registrada aqui, rota a rota.
 
 ## [Unreleased]
 
-Tudo abaixo entra na **0.1.0**, a primeira publicação. Enquanto a tag não sai,
-o conteúdo fica aqui — ver [PUBLICANDO.md](PUBLICANDO.md).
+Nada ainda.
+
+## [0.3.0] — 2026-08-20
+
+### Changed
+
+- **As cinco linguagens passam a andar na mesma versão.** Até aqui cada SDK
+  numerava por conta própria — o TypeScript na 0.2.1, os outros na 0.1.0 — e
+  perguntar "qual versão tem a área de legado?" dava quatro respostas
+  diferentes. A partir da 0.3.0 o número é o mesmo nas cinco, e a mesma
+  superfície sai no mesmo dia.
 
 ### Added
 
@@ -111,4 +120,5 @@ o conteúdo fica aqui — ver [PUBLICANDO.md](PUBLICANDO.md).
 
 Hoje o portão mede: **101 testes (subtestes incluídos), 99,1% de cobertura**.
 
-[Unreleased]: https://github.com/AR-Online/ar-online-go/commits/main
+[Unreleased]: https://github.com/AR-Online/ar-online-go/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/AR-Online/ar-online-go/releases/tag/v0.3.0

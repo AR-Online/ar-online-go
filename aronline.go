@@ -41,4 +41,4 @@ package aronline
 const DefaultBaseURL = "https://v3.ar-online.com.br"
 
 // Version is this module's version.
-const Version = "0.1.0"
+const Version = "0.3.0"

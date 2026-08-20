@@ -28,6 +28,25 @@ jobs:
       - run: go vet ./...
       - run: go test ./...
 
+      # A tag e a constante `Version` tem de dizer o mesmo número.
+      #
+      # Go não tem manifesto, então a constante é a única coisa que o pacote
+      # sabe sobre a própria versão — e é o primeiro dado que o suporte pede.
+      # Sem esta conferência, `v0.3.0` publicaria um módulo que se apresenta
+      # como outra coisa, e no Go isso não se desfaz: uma versão que o proxy
+      # indexou fica indexada.
+      - name: A constante Version é a da tag
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          version=$(grep -oP 'const Version = "\K[^"]+' aronline.go)
+
+          echo "tag=$tag  aronline.go=$version"
+
+          if [ "$tag" != "$version" ]; then
+            echo "a tag diz $tag e a constante diz $version"
+            exit 1
+          fi
+
       # Go não tem registro nem token: a TAG é a publicação. O proxy
       # (proxy.golang.org) indexa o módulo na primeira vez que alguém pedir
       # aquela versão. Não há Trusted Publishing a configurar aqui — não
